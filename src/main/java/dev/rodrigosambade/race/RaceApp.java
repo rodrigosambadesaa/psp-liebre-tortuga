@@ -1,8 +1,106 @@
 package dev.rodrigosambade.race;
-import javax.swing.*;
-import java.awt.*;
+
+import java.awt.GridLayout;
 import java.time.Duration;
 import java.util.random.RandomGenerator;
+
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JProgressBar;
+import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
+import javax.swing.WindowConstants;
+
 public final class RaceApp {
- public static void main(String[] args){SwingUtilities.invokeLater(RaceApp::show);} private static void show(){var frame=new JFrame("Liebre y tortuga");var hare=new JProgressBar(0,100);var tortoise=new JProgressBar(0,100);hare.setStringPainted(true);tortoise.setStringPainted(true);var status=new JLabel("Preparados…",SwingConstants.CENTER);var start=new JButton("Iniciar carrera");var panel=new JPanel(new GridLayout(0,1,8,8));panel.setBorder(BorderFactory.createEmptyBorder(16,16,16,16));panel.add(new JLabel("Liebre"));panel.add(hare);panel.add(new JLabel("Tortuga"));panel.add(tortoise);panel.add(status);panel.add(start);frame.setContentPane(panel);frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);frame.setSize(520,260);frame.setLocationRelativeTo(null);frame.setVisible(true);start.addActionListener(e->{start.setEnabled(false);RaceEngine engine=new RaceEngine(100,Duration.ofMillis(100),RandomGenerator.getDefault());engine.start(snapshot->SwingUtilities.invokeLater(()->{hare.setValue(snapshot.hare());tortoise.setValue(snapshot.tortoise());status.setText(snapshot.winner()==null?"Corriendo…":"Ganador: "+snapshot.winner());})).whenComplete((winner,error)->{engine.close();SwingUtilities.invokeLater(()->start.setEnabled(true));});});}
+
+    private static final int FINISH = 100;
+    private static final Duration TICK = Duration.ofMillis(100);
+
+    private RaceApp() {
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(RaceApp::show);
+    }
+
+    private static void show() {
+        JFrame frame = new JFrame("Liebre y tortuga");
+        JProgressBar hareProgress = createProgressBar();
+        JProgressBar tortoiseProgress = createProgressBar();
+        JLabel status = new JLabel("Preparados…", SwingConstants.CENTER);
+        JButton startButton = new JButton("Iniciar carrera");
+
+        frame.setContentPane(createContent(
+                hareProgress,
+                tortoiseProgress,
+                status,
+                startButton));
+        frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+        frame.setSize(520, 260);
+        frame.setLocationRelativeTo(null);
+
+        startButton.addActionListener(event -> startRace(
+                startButton,
+                hareProgress,
+                tortoiseProgress,
+                status));
+
+        frame.setVisible(true);
+    }
+
+    private static JProgressBar createProgressBar() {
+        JProgressBar progressBar = new JProgressBar(0, FINISH);
+        progressBar.setStringPainted(true);
+        return progressBar;
+    }
+
+    private static JPanel createContent(
+            JProgressBar hareProgress,
+            JProgressBar tortoiseProgress,
+            JLabel status,
+            JButton startButton) {
+        JPanel panel = new JPanel(new GridLayout(0, 1, 8, 8));
+        panel.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
+        panel.add(new JLabel("Liebre"));
+        panel.add(hareProgress);
+        panel.add(new JLabel("Tortuga"));
+        panel.add(tortoiseProgress);
+        panel.add(status);
+        panel.add(startButton);
+        return panel;
+    }
+
+    private static void startRace(
+            JButton startButton,
+            JProgressBar hareProgress,
+            JProgressBar tortoiseProgress,
+            JLabel status) {
+        startButton.setEnabled(false);
+        status.setText("Corriendo…");
+
+        RaceEngine engine = new RaceEngine(
+                FINISH,
+                TICK,
+                RandomGenerator.getDefault());
+
+        engine.start(snapshot -> SwingUtilities.invokeLater(() -> {
+            hareProgress.setValue(snapshot.hare());
+            tortoiseProgress.setValue(snapshot.tortoise());
+
+            if (snapshot.winner() != null) {
+                status.setText("Ganador: " + snapshot.winner());
+            }
+        })).whenComplete((winner, error) -> {
+            engine.close();
+            SwingUtilities.invokeLater(() -> {
+                startButton.setEnabled(true);
+                if (error != null) {
+                    status.setText("La carrera terminó con un error");
+                }
+            });
+        });
+    }
 }
